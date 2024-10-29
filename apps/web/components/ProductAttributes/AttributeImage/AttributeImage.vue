@@ -22,7 +22,7 @@
           class="p-2 border border-zinc-300 rounded-md cursor-pointer hover:bg-[#3C3C4226]"
           :class="{
             'text-zinc-300 border-dashed': productAttributeGetters.isAttributeValueDisabled(item),
-            '!border-primary-700 bg-zinc-100': value === productAttributeGetters.getAttributeValueId(item),
+            '!border-primary-500 bg-zinc-100': value === productAttributeGetters.getAttributeValueId(item),
             '!ring-negative-700 !border-negative-700 ring-1': Boolean(errors['selectedValue']),
           }"
           @click="doUpdateValue(item)"
@@ -35,7 +35,7 @@
         </div>
       </SfTooltip>
     </div>
-    <VeeErrorMessage as="span" name="selectedValue" class="flex text-negative-700 text-sm mt-2" />
+    <ErrorMessage as="span" name="selectedValue" class="flex text-negative-700 text-sm mt-2" />
   </div>
 </template>
 
@@ -45,7 +45,8 @@ import type { AttributeSelectProps } from '../types';
 import type { VariationMapProductAttributeValue } from '@plentymarkets/shop-api';
 import { productAttributeGetters } from '@plentymarkets/shop-api';
 import { object, number } from 'yup';
-import { useForm } from 'vee-validate';
+import { useForm, ErrorMessage } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/yup';
 
 const { updateValue, getValue } = useProductAttributes();
 const { registerValidator, registerInvalidFields } = useValidatorAggregator('attributes');

@@ -46,20 +46,23 @@
               <span class="font-medium">{{ attribute.value }}</span>
             </li>
           </ul>
-
           <div
             class="text-xs font-normal leading-5 sm:typography-text-sm text-neutral-700"
             v-if="cartItem.basketItemOrderParams.length > 0"
           >
             <div class="text-[15px]">{{ t('orderProperties.additionalCostsPerItem') }}:</div>
-            <ul>
-              <CartOrderProperty
-                v-for="property in cartItem.basketItemOrderParams"
-                :key="property.propertyId"
-                :cart-item="cartItem"
-                :basket-item-order-param="property"
-              />
-            </ul>
+            <CartOrderProperty
+              v-for="property in cartItem.basketItemOrderParams"
+              :key="property.propertyId"
+              :cart-item="cartItem"
+              :basket-item-order-param="property"
+            />
+          </div>
+          <div
+            v-if="cartGetters.getVariation(cartItem)"
+            class="text-xs font-normal leading-5 sm:typography-text-sm text-neutral-700 mt-3"
+          >
+            <VariationProperties :product="cartGetters.getVariation(cartItem)" />
           </div>
         </div>
       </div>
@@ -87,7 +90,7 @@
       <div class="items-start sm:items-center sm:mt-auto flex flex-col sm:flex-row">
         <span
           v-if="currentFullPrice"
-          class="text-secondary-700 sm:order-1 font-bold typography-text-sm sm:typography-text-lg sm:ml-auto"
+          class="text-secondary-600 sm:order-1 font-bold typography-text-sm sm:typography-text-lg sm:ml-auto"
         >
           {{ n(currentFullPrice || 0, 'currency') }}
         </span>
@@ -95,34 +98,36 @@
           :disabled="disabled"
           @change-quantity="debounceQuantity"
           :value="cartGetters.getItemQty(cartItem)"
-          :min-value="1"
+          :min-value="productGetters.getMinimumOrderQuantity(cartItem.variation || ({} as Product))"
           class="mt-4 sm:mt-0"
         />
       </div>
     </div>
 
     <div v-if="deleteLoading" class="absolute top-2 right-2 bg-white p-1.5">
-      <SfLoaderCircular />
+      <SfLoaderCircular aria-label="loading" />
     </div>
 
-    <SfButton
+    <UiButton
       v-else-if="!disabled"
       @click="deleteItem"
       square
+      :aria-label="t('removeItemFromBasket')"
       variant="tertiary"
       size="sm"
       class="absolute top-2 right-2 bg-white"
     >
       <SfIconClose size="sm" />
-    </SfButton>
+    </UiButton>
   </div>
 </template>
 
 <script setup lang="ts">
 import { productGetters, productBundleGetters, cartGetters } from '@plentymarkets/shop-api';
-import { SfLink, SfLoaderCircular, SfIconClose, SfButton } from '@storefront-ui/vue';
+import { SfLink, SfLoaderCircular, SfIconClose } from '@storefront-ui/vue';
 import _ from 'lodash';
 import type { CartProductCardProps } from '~/components/ui/CartProductCard/types';
+import type { Product } from '@plentymarkets/shop-api';
 
 const { addModernImageExtension, getImageForViewport } = useModernImage();
 const { setCartItemQuantity, deleteCartItem } = useCart();
@@ -134,9 +139,7 @@ const img = ref();
 const deleteLoading = ref(false);
 const emit = defineEmits(['load']);
 
-const props = withDefaults(defineProps<CartProductCardProps>(), {
-  disabled: false,
-});
+const { cartItem, disabled = false } = defineProps<CartProductCardProps>();
 
 onMounted(() => {
   const imgElement = (img.value?.$el as HTMLImageElement) || null;
@@ -156,25 +159,25 @@ onMounted(() => {
 const changeQuantity = async (quantity: string) => {
   await setCartItemQuantity({
     quantity: Number(quantity),
-    cartItemId: props.cartItem.id,
-    productId: props.cartItem.variationId,
+    cartItemId: cartItem.id,
+    productId: cartItem.variationId,
   });
 };
 const deleteItem = async () => {
   deleteLoading.value = true;
   await deleteCartItem({
-    cartItemId: props.cartItem.id,
+    cartItemId: cartItem.id,
   });
   send({ message: t('deletedFromCart'), type: 'positive' });
   deleteLoading.value = false;
 };
 
 const currentFullPrice = computed(() => {
-  return cartGetters.getCartItemPrice(props.cartItem) * cartGetters.getItemQty(props.cartItem);
+  return cartGetters.getCartItemPrice(cartItem) * cartGetters.getItemQty(cartItem);
 });
 const cartItemImage = computed(() => {
-  if (props.cartItem && props.cartItem.variation) {
-    return getImageForViewport(props.cartItem.variation, 'CartProductCard');
+  if (cartItem && cartItem.variation) {
+    return getImageForViewport(cartItem.variation, 'CartProductCard');
   }
   return '';
 });
@@ -183,12 +186,11 @@ const debounceQuantity = _.debounce(changeQuantity, 500);
 
 const NuxtLink = resolveComponent('NuxtLink');
 
-const basePriceSingleValue = computed(() =>
-  props.cartItem?.variation
-    ? productGetters.getGraduatedPriceByQuantity(props.cartItem.variation, props.cartItem.quantity)?.baseSinglePrice ??
-      productGetters.getDefaultBaseSinglePrice(props.cartItem.variation)
-    : 0,
+const basePriceSingleValue = computed(
+  () =>
+    productGetters.getGraduatedPriceByQuantity(cartItem.variation ?? ({} as Product), cartItem.quantity)?.basePrice ??
+    productGetters.getDefaultBasePrice(cartItem.variation ?? ({} as Product)),
 );
 
-const path = computed(() => localePath('/' + cartGetters.getProductPath(props.cartItem)));
+const path = computed(() => localePath('/' + cartGetters.getProductPath(cartItem)));
 </script>

@@ -3,24 +3,23 @@
     <div class="flex flex-col gap-4 p-2 md:p-6 rounded-md w-full md:w-2/3">
       <div class="md:self-center">
         <h2 class="font-bold mb-6 text-lg">{{ $t('guestCheckout') }}</h2>
-        <SfButton
+        <UiButton
           data-testid="guest-checkout-button"
           :tag="NuxtLink"
           :to="localePath(paths.checkout)"
           class="w-full mb-4"
         >
           {{ $t('continueAsGuest') }}
-        </SfButton>
+        </UiButton>
         <OrDivider />
         <div v-if="isAvailable">
-          <client-only>
-            <PayPalExpressButton v-if="!loginSubmit" class="mt-4" type="CartPreview" />
-          </client-only>
+          <PayPalExpressButton v-if="!loginSubmit" class="mt-4" type="CartPreview" />
+          <PayPalPayLaterBanner placement="cart" :amount="cartGetters.getTotal(cartGetters.getTotals(cart))" />
           <OrDivider />
         </div>
         <div class="w-[400px] mt-4">
           <form @submit.prevent="loginUser">
-            <h1 class="font-bold text-lg">{{ $t('loginFastCheckout') }}</h1>
+            <h2 class="font-bold text-lg">{{ $t('loginFastCheckout') }}</h2>
             <label>
               <UiFormLabel class="w-full mt-4">{{ $t('form.emailLabel') }}</UiFormLabel>
               <SfInput class="w-full" name="email" type="email" autocomplete="email" v-model="email" required />
@@ -31,12 +30,12 @@
               <UiFormPasswordInput name="password" autocomplete="current-password" v-model="password" required />
             </label>
 
-            <SfButton type="submit" class="mt-4 w-full">
+            <UiButton type="submit" class="mt-4 w-full">
               <SfLoaderCircular v-if="loading" />
               <span>
                 {{ $t('auth.login.loginAndContinue') }}
               </span>
-            </SfButton>
+            </UiButton>
             <div class="text-center mt-6">
               <!-- <SfLink href="#" variant="primary">
                             {{ $t('auth.login.forgotPasswordLabel') }}
@@ -54,10 +53,13 @@
 </template>
 
 <script setup lang="ts">
-import { SfButton, SfInput, SfLoaderCircular } from '@storefront-ui/vue';
+import { SfInput, SfLoaderCircular } from '@storefront-ui/vue';
+import { paths } from '~/utils/paths';
+import { cartGetters } from '@plentymarkets/shop-api';
 
 const { login, isAuthorized, loading } = useCustomer();
 const { send } = useNotification();
+const { data: cart } = useCart();
 const { isAvailable, loadConfig } = usePayPal();
 const { t } = useI18n();
 const localePath = useLocalePath();

@@ -9,7 +9,7 @@
         </section>
         <section class="mb-10 grid-in-right md:mb-0">
           <NuxtLazyHydrate when-idle>
-            <UiPurchaseCard v-if="product" :product="product" :review-average="productReviewAverage" />
+            <UiPurchaseCard v-if="product" :product="product" :review-average="countsProductReviews" />
           </NuxtLazyHydrate>
         </section>
         <section class="grid-in-left-bottom md:mt-8">
@@ -17,16 +17,18 @@
           <NuxtLazyHydrate when-visible>
             <ProductAccordion v-if="product" :product="product" />
           </NuxtLazyHydrate>
-          <NuxtLazyHydrate when-visible>
-            <ReviewsAccordion
-              v-if="product"
-              :product="product"
-              :review-average-text="reviewGetters.getAverageRating(productReviewAverage, 'tenth')"
-              :review-average-stars="reviewGetters.getAverageRating(productReviewAverage, 'half')"
-              :total-reviews="reviewGetters.getTotalReviews(productReviewAverage)"
-              @on-list-change="fetchProductReviewAverage(Number(productId))"
-            />
-          </NuxtLazyHydrate>
+          <ReviewsAccordion
+            v-if="product"
+            :product="product"
+            :total-reviews="reviewGetters.getTotalReviews(countsProductReviews)"
+          />
+
+          <div class="p-4 flex">
+            <p @click="openDrawer()" class="font-bold leading-6 cursor-pointer">
+              <span>{{ t('legalDetails') }}</span>
+              <SfIconChevronRight />
+            </p>
+          </div>
         </section>
       </div>
       <section class="mx-4 mt-28 mb-20">
@@ -37,46 +39,52 @@
         </NuxtLazyHydrate>
       </section>
     </NarrowContainer>
+
+    <UiReviewModal />
+    <ProductLegalDetailsDrawer v-if="open" :product="product" />
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
-import { type Product, productGetters, reviewGetters } from '@plentymarkets/shop-api';
-
-const { data: categoryTree } = useCategoryTree();
-const { setProductMetaData } = useStructuredData();
-const route = useRoute();
-const { selectVariation } = useProducts();
-const { buildProductLanguagePath } = useLocalization();
-const { addModernImageExtensionForGallery } = useModernImage();
+import { SfIconChevronRight } from '@storefront-ui/vue';
+import { Product, productGetters, reviewGetters, categoryTreeGetters } from '@plentymarkets/shop-api';
 
 definePageMeta({
   layout: false,
+  path: '/:slug*_:itemId',
 });
 
+const { t } = useI18n();
+const route = useRoute();
+const { setCurrentProduct } = useProducts();
+const { setProductMetaData } = useStructuredData();
+const { buildProductLanguagePath } = useLocalization();
+const { addModernImageExtensionForGallery } = useModernImage();
 const { productParams, productId } = createProductParams(route.params);
-const { data: product, fetchProduct, setTitle, generateBreadcrumbs, breadcrumbs } = useProduct(productId);
-const { data: productReviewAverage, fetchProductReviewAverage } = useProductReviewAverage(productId);
-const { fetchProductReviews } = useProductReviews(Number(productId));
-if (process.server) {
-  await Promise.all([
-    fetchProduct(productParams),
-    fetchProductReviewAverage(Number(productId)),
-    fetchProductReviews(Number(productId)),
-  ]);
-  setProductMetaData(product.value, categoryTree.value[0]);
-} else {
-  await Promise.all([fetchProduct(productParams), fetchProductReviewAverage(Number(productId))]);
+const { data: product, fetchProduct, setProductMeta, setBreadcrumbs, breadcrumbs } = useProduct(productId);
+const { data: productReviews, fetchProductReviews } = useProductReviews(Number(productId));
+const { data: categoryTree } = useCategoryTree();
+const { open, openDrawer } = useProductLegalDetailsDrawer();
+
+const countsProductReviews = computed(() => reviewGetters.getReviewCounts(productReviews.value));
+
+await fetchProduct(productParams);
+setCurrentProduct(product.value || ({} as Product));
+setProductMeta();
+
+async function fetchReviews() {
+  const productVariationId = productGetters.getVariationId(product.value);
+  await fetchProductReviews(Number(productId), productVariationId);
 }
-selectVariation(productParams.variationId ? product.value : ({} as Product));
-setTitle();
-generateBreadcrumbs();
+await fetchReviews();
+
+setBreadcrumbs();
+
 // eslint-disable-next-line unicorn/expiring-todo-comments
 /* TODO: This should only be temporary.
  *  It changes the url of the product page while on the page and switching the locale.
  *  Should be removed when the item search is refactored.
  */
-
 watch(
   () => product.value.texts.urlPath,
   (value, oldValue) => {
@@ -89,5 +97,19 @@ watch(
       });
     }
   },
+);
+
+watch(
+  () => categoryTree.value,
+  (categoriesTree) => {
+    const productCategoryId = productGetters.getParentCategoryId(product.value);
+    if (categoriesTree.length > 0 && productCategoryId) {
+      const categoryTree = categoriesTree.find(
+        (categoryTree) => categoryTreeGetters.getId(categoryTree) === productCategoryId,
+      );
+      if (categoryTree) setProductMetaData(product.value, categoryTree);
+    }
+  },
+  { immediate: true },
 );
 </script>
