@@ -1,0 +1,76 @@
+<template>
+  <article class="demo-area">
+    <slot></slot>
+  </article>
+</template>
+
+<script setup lang="ts">
+import Drift from 'drift-zoom';
+
+onMounted(() => {
+  let demoTrigger = document.querySelector('.demo-trigger') as HTMLElement;
+  let paneContainer = document.querySelector('.detail') as HTMLElement;
+
+  new Drift(demoTrigger, {
+    paneContainer: paneContainer,
+    containInline: true,
+    zoomFactor: 3,
+    hoverBoundingBox: true,
+    inlinePane: 375,
+    handleTouch: true,
+  });
+});
+</script>
+
+<style scoped>
+.demo-trigger {
+  display: inline-block;
+  width: 30%;
+}
+
+.detail {
+  position: relative;
+  width: 65%;
+  margin-left: 5%;
+  float: left;
+}
+
+@media (max-width: 610px) {
+  .detail,
+  .demo-trigger {
+    float: none;
+  }
+
+  .demo-trigger {
+    display: block;
+    width: 50%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+
+  .detail {
+    margin: 0;
+    width: auto;
+  }
+
+  p {
+    margin: 0 auto 1em;
+  }
+
+  .responsive-hint {
+    display: none;
+  }
+  h3 {
+    margin-top: 20px;
+  }
+}
+</style>
+
+<style>
+.drift-bounding-box {
+  border: none !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  width: 135px !important;
+  height: 135px !important;
+}
+</style>
